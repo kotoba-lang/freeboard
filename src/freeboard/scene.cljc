@@ -32,13 +32,50 @@
      :material/tint          (if (:fill d) (hex->rgba (:fill d))
                                  (kind-tint (:kind d) [1.0 1.0 1.0 1.0]))}))
 
+;; ---- lines as quads (no separate line pipeline needed) --------------------
+(defn- sincos [a] #?(:clj [(Math/sin a) (Math/cos a)] :cljs [(js/Math.sin a) (js/Math.cos a)]))
+(defn- atan2 [y x] #?(:clj (Math/atan2 y x) :cljs (js/Math.atan2 y x)))
+(defn- hypot [x y] #?(:clj (Math/hypot x y) :cljs (js/Math.hypot x y)))
+
+(defn seg->entity
+  "A screen-space segment [[x1 y1][x2 y2]] of width `w` → a rotated thin quad
+   entity (corner-origin unit quad, scale [L w 1], z-rotation θ, translated so
+   the quad is centred on the segment)."
+  [eid [[x1 y1] [x2 y2]] w z tint]
+  (let [dx (- x2 x1) dy (- y2 y1)
+        L  (max 1.0 (hypot dx dy))
+        th (atan2 dy dx)
+        [s c] (sincos th)
+        mx (/ (+ x1 x2) 2.0) my (/ (+ y1 y2) 2.0)
+        ;; translation = midpoint - R(θ)·[L/2, w/2]
+        ox (- mx (- (* c (/ L 2.0)) (* s (/ w 2.0))))
+        oy (- my (+ (* s (/ L 2.0)) (* c (/ w 2.0))))]
+    {:kami/eid              eid
+     :transform/translation [ox oy (* 0.001 z)]
+     :transform/rotation    [0.0 0.0 (#?(:clj Math/sin :cljs js/Math.sin) (/ th 2.0))
+                             (#?(:clj Math/cos :cljs js/Math.cos) (/ th 2.0))]
+     :transform/scale       [L (max 1.0 w) 1.0]
+     :mesh/asset            "freeboard:quad"
+     :material/asset        "freeboard:flat"
+     :material/tint         tint}))
+
+(defn- line-entities [d]
+  (let [tint (if (:stroke d) (hex->rgba (:stroke d)) (:connector kind-tint))
+        z    (:z d)]
+    (case (:kind d)
+      :connector (when-let [ln (:connector/line d)] [(seg->entity (str (:eid d) ":l") ln 2.0 z tint)])
+      :ink       (let [pts (:ink/polyline d) w (:ink/width d 2.0)]
+                   (map-indexed (fn [i seg] (seg->entity (str (:eid d) ":" i) seg w z tint))
+                                (partition 2 1 pts)))
+      nil)))
+
 (defn board->entities
-  "Renderable quad entities for rect-shaped items. Connectors/ink are polylines
-   needing a line pipeline (follow-up); excluded here."
+  "Renderable quad entities. Rect items → one quad; connectors/ink → thin quad
+   segments (so they render on the same quad+tint pipeline, no line pipeline)."
   [board]
-  (->> (:draws (r/draw-list board))
-       (remove #(#{:connector :ink} (:kind %)))
-       (mapv draw->entity)))
+  (let [draws (:draws (r/draw-list board))]
+    (into (mapv draw->entity (remove #(#{:connector :ink} (:kind %)) draws))
+          (mapcat line-entities (filter #(#{:connector :ink} (:kind %)) draws)))))
 
 (defn camera-entity
   "Active camera. 2D board uses a positioned perspective camera (ortho camera-ir

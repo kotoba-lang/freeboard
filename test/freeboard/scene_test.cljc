@@ -23,6 +23,23 @@
     (testing "no-fill item falls back to per-kind tint"
       (is (= (:frame sc/kind-tint) (:material/tint (first (filter #(= "f" (:kami/eid %)) ents))))))))
 
+(deftest line-as-quad
+  (testing "horizontal segment → quad covering the line, centred, width w"
+    (let [e (sc/seg->entity "x" [[0.0 0.0] [100.0 0.0]] 4.0 1 [0.0 0.0 0.0 1.0])]
+      (is (= [100.0 4.0 1.0] (:transform/scale e)))           ; L × w
+      (is (= [0.0 -2.0] (vec (take 2 (:transform/translation e)))))  ; corner at (0,-w/2)
+      (is (< (Math/abs (- 0.0 (nth (:transform/rotation e) 2))) 1e-9)))) ; θ=0 → no z-rot
+  (testing "connectors + ink become quad entities on the freeboard:quad mesh"
+    (let [bd (-> (b/new-board)
+                 (b/add-item {:item/id "a" :item/kind :sticky :item/x 0 :item/y 0 :item/w 100 :item/h 100})
+                 (b/add-item {:item/id "c" :item/kind :sticky :item/x 300 :item/y 0 :item/w 100 :item/h 100})
+                 (b/add-connector "a" "c")
+                 (b/add-ink [[0 0] [10 10] [20 0]] 3.0 "#222"))
+          ents (sc/board->entities bd)]
+      (is (every? #(= "freeboard:quad" (:mesh/asset %)) ents))
+      ;; 2 stickies + 1 connector seg + 2 ink segs = 5 entities
+      (is (= 5 (count ents))))))
+
 (deftest snapshot
   (let [bd (-> (b/new-board) (b/add-item {:item/kind :sticky :item/x 0 :item/y 0 :item/w 10 :item/h 10}))
         snap (sc/scene-snapshot bd)]

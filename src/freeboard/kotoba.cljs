@@ -65,3 +65,35 @@
   "Load the last locally-saved board (localStorage backend), or nil."
   []
   (go (when-let [id (ls-get "freeboard/head")] (<! (load-board id)))))
+
+;; --- collaborative op log ---------------------------------------------------
+;; The shared editing surface is an op log (freeboard.collab). Over a real
+;; Kotoba server it's a datomic.* transaction feed (ai.gftd.apps.kotobase.
+;; datomic.transact / .q, CACAO-authed per board graph); the localStorage
+;; backend appends to an EDN log so single-user works offline. pull-ops merges
+;; remote ops; freeboard.collab/replay converges.
+(defn push-ops!
+  "Append ops (a vector) for `board-id`. Returns a channel (unit when done)."
+  [board-id ops]
+  (if-let [url (base-url)]
+    (let [c (a/chan 1)]
+      (-> (js/fetch (str url "/xrpc/ai.gftd.apps.kotobase.datomic.transact")
+                    #js {:method "POST" :headers #js {"content-type" "application/json"}
+                         :body (js/JSON.stringify #js {:graph board-id :ops (utf8->b64 (pr-str ops))})})
+          (.then (fn [_] (a/put! c :ok) (a/close! c))))
+      c)
+    (let [k (str "freeboard/ops/" board-id)
+          cur (or (some-> (ls-get k) cljs.reader/read-string) [])]
+      (ls-put k (pr-str (into cur ops)))
+      (chan-of :ok))))
+
+(defn pull-ops
+  "Fetch the op log for `board-id`. Returns a channel yielding a vector of ops."
+  [board-id]
+  (if-let [url (base-url)]
+    (let [c (a/chan 1)]
+      (-> (js/fetch (str url "/xrpc/ai.gftd.apps.kotobase.datomic.q?graph=" board-id))
+          (.then #(.json %))
+          (.then (fn [r] (a/put! c (or (some-> (aget r "ops") b64->utf8 cljs.reader/read-string) [])) (a/close! c))))
+      c)
+    (chan-of (or (some-> (ls-get (str "freeboard/ops/" board-id)) cljs.reader/read-string) []))))

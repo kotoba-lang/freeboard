@@ -27,7 +27,7 @@
   []
   (when-let [be @backend]
     (let [snap  (sc/scene-snapshot (:board @app))
-          world (-> (ecs/world) (ecs/load-snapshot {:snapshot/entities (:snapshot/entities snap)}))
+          world (ecs/load-snapshot snap)                       ; 1-arg: snapshot → fresh world
           frame (kr/frame world {:n (:frame @app) :aspect @aspect :clear sc/nintendo-cream})]
       (gpu/submit! be frame {:tint? true})
       (swap! app update :frame inc))))
