@@ -1,0 +1,11 @@
+;; freeboard — ClojureScript browser build (mirrors kami-app-sip-clj). The wgpu
+;; work is done by the kami-render wasm host, not here; this module drives board
+;; state + input + per-frame render-IR. index.html boots after wasm init.
+{:deps   {:aliases [:shadow]}
+ :source-paths ["src"]
+ :builds
+ {:app {:target     :browser
+        :output-dir "public/js"
+        :asset-path "/js"
+        :modules    {:freeboard {:entries [freeboard.web]}}    ; ^:export freeboard.web/boot
+        :release    {:compiler-options {:optimizations :advanced}}}}}

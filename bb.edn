@@ -1,0 +1,7 @@
+{:paths ["src" "test" "resources"]
+ :tasks
+ {test
+  {:doc "Run the pure-cljc board core tests (no external deps)."
+   :requires ([clojure.test :as t] [freeboard.board-test])
+   :task (let [{:keys [fail error]} (t/run-tests 'freeboard.board-test)]
+           (System/exit (if (pos? (+ fail error)) 1 0)))}}}

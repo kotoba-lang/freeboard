@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+  <title>freeboard</title>
+  <style>
+    html,body { margin:0; height:100%; background:#f0ead6; overflow:hidden; } /* nintendo-cream */
+    #stage { position:fixed; inset:0; touch-action:none; }
+    #toolbar { position:fixed; top:12px; left:12px; display:flex; gap:8px; font:14px system-ui; }
+    #toolbar button { padding:6px 12px; border:1px solid #caa83a; border-radius:8px; background:#ffeb8a; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div id="toolbar"><button id="add-sticky">＋ sticky</button></div>
+
+  <!-- 1) kami-render (Rust/wgpu) wasm host, then 2) the cljs brain module.
+       The host exposes submit(draw-list); freeboard.web.boot wires input→ops. -->
+  <script type="module">
+    import { initKamiHost } from "/js/kami-host.js"; // kami-engine-sdk-clj browser backend (WebGPU)
+    const canvas = document.getElementById("stage");
+    const fit = () => { canvas.width = innerWidth*devicePixelRatio; canvas.height = innerHeight*devicePixelRatio; };
+    fit(); addEventListener("resize", fit);
+
+    const host = await initKamiHost(canvas);     // → { submit(drawList) }
+    await import("/js/freeboard.js");             // shadow-cljs output (advanced)
+    const fb = window.freeboard.web;
+    fb.boot(host.submit);
+
+    const pt = e => [e.clientX*devicePixelRatio, e.clientY*devicePixelRatio];
+    canvas.addEventListener("pointerdown", e => fb.on_pointer_down(...pt(e)));
+    canvas.addEventListener("pointermove", e => fb.on_pointer_move(...pt(e)));
+    addEventListener("pointerup", () => fb.on_pointer_up());
+    canvas.addEventListener("wheel", e => { e.preventDefault(); fb.on_wheel(...pt(e), e.deltaY); }, {passive:false});
+    document.getElementById("add-sticky").onclick = () => fb.add_sticky(canvas.width/2, canvas.height/2);
+  </script>
+</body>
+</html>
