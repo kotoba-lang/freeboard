@@ -92,13 +92,21 @@
    :transform/translation [0.0 0.0 0.0]})
 
 (def quad-mesh
-  ;; unit quad [0,0]→[1,1], pos-only. Vertices/indices live under :asset/data —
-  ;; the shape kami.gpu/ensure-assets! reads (register-mesh! id (:vertices data)
-  ;; (:indices data)). Putting them top-level → nil → a 0-size GPU buffer →
-  ;; wgpu Buffer::slice panic at draw (found via freeboard.debug).
+  ;; unit quad [0,0]→[1,1]. kami-render's default pipeline expects each vertex
+  ;; INTERLEAVED as pos3 + norm3 + uv2 (VERTEX_STRIDE = 32 B, host.rs vbuf
+  ;; locations 0/1/2). A pos-only mesh is mis-strided → degenerate geometry →
+  ;; nothing visible (the "items don't render" bug found via freeboard.debug).
+  ;; Vertices/indices live under :asset/data (the shape ensure-assets! reads).
   {:asset/id "freeboard:quad" :asset/kind :mesh
-   :asset/data {:vertices [0.0 0.0 0.0  1.0 0.0 0.0  1.0 1.0 0.0  0.0 1.0 0.0]
-                :indices  [0 1 2  0 2 3]}})
+   :asset/data {:vertices [0.0 0.0 0.0  0.0 0.0 1.0  0.0 0.0    ; pos, normal +Z, uv
+                           1.0 0.0 0.0  0.0 0.0 1.0  1.0 0.0
+                           1.0 1.0 0.0  0.0 0.0 1.0  1.0 1.0
+                           0.0 1.0 0.0  0.0 0.0 1.0  0.0 1.0]
+                ;; CW winding: the ortho proj flips Y, which inverts triangle
+                ;; winding in NDC. kami-render culls back faces (front_face Ccw),
+                ;; so a naive CCW quad is culled → invisible. Reverse to stay
+                ;; front-facing after the flip (found via freeboard.debug).
+                :indices  [0 2 1  0 3 2]}})
 
 (def flat-material {:asset/id "freeboard:flat" :asset/kind :material :asset/data {:params []}})
 
