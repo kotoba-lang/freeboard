@@ -54,7 +54,8 @@
                                                                 :text (.text ^com.microsoft.playwright.ConsoleMessage m)}))))
       (.onPageError page (reify java.util.function.Consumer
                            (accept [_ e] (swap! logs conj {:type "pageerror" :text (str e)}))))
-      (.navigate browser url)                                  ; ensure loaded (idempotent)
+      (.navigate page url)                                     ; raw Playwright Page.navigate
+      (.waitForLoadState page)
       (Thread/sleep 2500)                                      ; wasm host + boot settle
       (let [before (probe page)
             _      (click-add-sticky page)
