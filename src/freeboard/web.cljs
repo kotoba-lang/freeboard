@@ -113,6 +113,24 @@
             :item/fill "#ffeb8a" :text/runs [{:text ""}]})
     (present!)))
 
+(defn ^:export add-image
+  "Demo/verification of the texture path: generate a procedural RGBA checkerboard,
+   register it as a kami texture, and drop an image item that samples it."
+  [sx sy]
+  (when-let [be @backend]
+    (let [w 64 h 64
+          bytes (vec (mapcat (fn [i] (let [x (mod i w) y (quot i w)
+                                           on? (even? (+ (quot x 8) (quot y 8)))]
+                                       (if on? [40 120 200 255] [245 245 245 255])))
+                             (range (* w h))))
+          [wx wy] (world-at sx sy)
+          id (b/gen-id)]
+      (gpu/register-texture! be "freeboard:demo-img" w h bytes)
+      (swap! app update :board b/add-item
+             {:item/id id :item/kind :image :item/x wx :item/y wy :item/w 200 :item/h 200
+              :image/texture "freeboard:demo-img"})
+      (present!))))
+
 (defn ^:export import-doc!
   "Drop a kasane-normalized doc onto the canvas at a screen point."
   [kasane-doc sx sy]

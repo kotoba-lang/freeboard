@@ -41,7 +41,7 @@
               :stroke (:item/stroke it)}]
     (case (:item/kind it)
       :text  (assoc base :text/runs (:text/runs it))
-      :image (assoc base :image/blob (:image/blob it))
+      :image (assoc base :image/blob (:image/blob it) :image/texture (:image/texture it))
       :shape (assoc base :shape/type (:shape/type it :rect) :vector/points (:vector/points it))
       :ink   (assoc base :ink/polyline (mapv #(b/world->screen vp %) (:ink/points it []))
                     :ink/width (* (:ink/width it 2.0) z))

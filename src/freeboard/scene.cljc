@@ -56,18 +56,21 @@ struct VsOut { @builtin(position) clip: vec4<f32>, @location(0) tint: vec4<f32> 
 
 (defn- draw->entity [d]
   (let [[sx sy sw sh] (:rect d)]
-    {:kami/eid               (:eid d)
-     :transform/translation  [sx sy (* 0.001 (:z d))]         ; small z for stable layering
-     :transform/scale        [(max 1.0 sw) (max 1.0 sh) 1.0]
-     :mesh/asset             "freeboard:quad"
-     :material/asset         "freeboard:flat"
-     :shader/asset           "freeboard:flat2d"               ; flat (unlit) pipeline
-     ;; kami.render/merge-instances reads per-instance tint from
-     ;; [:material/params :tint] (NOT :material/tint) — match that or it defaults
-     ;; to white (found via freeboard.debug: entity had the colour but the draw
-     ;; packed [1 1 1 1]).
-     :material/params        {:tint (if (:fill d) (hex->rgba (:fill d))
-                                        (kind-tint (:kind d) [1.0 1.0 1.0 1.0]))}}))
+    (cond-> {:kami/eid               (:eid d)
+             :transform/translation  [sx sy (* 0.001 (:z d))]  ; small z for stable layering
+             :transform/scale        [(max 1.0 sw) (max 1.0 sh) 1.0]
+             :mesh/asset             "freeboard:quad"
+             :material/asset         "freeboard:flat"
+             :shader/asset           "freeboard:flat2d"        ; flat (unlit) pipeline
+             ;; kami.render/merge-instances reads per-instance tint from
+             ;; [:material/params :tint] (NOT :material/tint) — match that or it
+             ;; defaults to white (found via freeboard.debug).
+             :material/params        {:tint (if (:fill d) (hex->rgba (:fill d))
+                                                (kind-tint (:kind d) [1.0 1.0 1.0 1.0]))}}
+      ;; image items sample a registered texture — host selects the textured
+      ;; pipeline when :texture/asset is present; tint white = unmodulated image.
+      (:image/texture d) (assoc :texture/asset (:image/texture d)
+                                :material/params {:tint [1.0 1.0 1.0 1.0]}))))
 
 ;; ---- lines as quads (no separate line pipeline needed) --------------------
 (defn- sincos [a] #?(:clj [(Math/sin a) (Math/cos a)] :cljs [(js/Math.sin a) (js/Math.cos a)]))
