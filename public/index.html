@@ -8,12 +8,20 @@
     html,body { margin:0; height:100%; background:#f0ead6; overflow:hidden; } /* nintendo-cream */
     #stage { position:fixed; inset:0; touch-action:none; }
     #toolbar { position:fixed; top:12px; left:12px; display:flex; gap:8px; font:14px system-ui; }
-    #toolbar button { padding:6px 12px; border:1px solid #caa83a; border-radius:8px; background:#ffeb8a; cursor:pointer; }
+    #toolbar button { padding:6px 12px; border:1px solid #caa83a; border-radius:8px; background:#fff7d6; cursor:pointer; }
+    #toolbar button.active { background:#ffeb8a; box-shadow:0 0 0 2px #caa83a; }
   </style>
 </head>
 <body>
   <canvas id="stage"></canvas>
-  <div id="toolbar"><button id="add-sticky">＋ sticky</button></div>
+  <div id="toolbar">
+    <button data-tool="select" class="active">▦ select</button>
+    <button id="add-sticky" data-tool="sticky">＋ sticky</button>
+    <button data-tool="shape">▭ shape</button>
+    <button data-tool="text">T text</button>
+    <button data-tool="connector">↘ connector</button>
+    <button data-tool="pen">✎ pen</button>
+  </div>
 
   <!-- The cljs brain (freeboard.web) drives board state + input; the kami-clj-host
        wasm (kami-render/wgpu) is loaded dynamically so a missing/failed wasm
@@ -39,7 +47,12 @@
     canvas.addEventListener("pointermove", e => fb.on_pointer_move(...pt(e)));
     addEventListener("pointerup", () => fb.on_pointer_up());
     canvas.addEventListener("wheel", e => { e.preventDefault(); fb.on_wheel(...pt(e), e.deltaY); }, {passive:false});
-    document.getElementById("add-sticky").onclick = () => fb.add_sticky(canvas.width/2, canvas.height/2);
+    // tool palette: data-tool buttons set the active tool (click canvas to place)
+    const tbtns = [...document.querySelectorAll("#toolbar button[data-tool]")];
+    tbtns.forEach(btn => btn.addEventListener("click", () => {
+      fb.set_tool(btn.dataset.tool);
+      tbtns.forEach(b => b.classList.toggle("active", b === btn));
+    }));
   </script>
 </body>
 </html>

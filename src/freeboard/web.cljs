@@ -15,7 +15,8 @@
             [kami.backend.browser :as kb]))
 
 (defonce app (atom {:board (b/new-board "Freeboard")
-                    :drag  nil :frame 0 :w 1280 :h 720}))      ; {:mode :item-id :last [x y]}
+                    :drag  nil :frame 0 :w 1280 :h 720
+                    :tool "select" :pending nil}))             ; tool ∈ select/sticky/shape/text/connector/pen
 
 ;; ---- kami host (kami-render/wgpu via kami-engine-sdk-clj) -------------------
 (defonce ^:private backend (atom nil))
@@ -33,16 +34,50 @@
       (gpu/submit! be fr {:tint? true})
       (swap! app update :frame inc))))
 
+;; ---- tools -----------------------------------------------------------------
+(declare begin-edit)
+(defn ^:export set-tool [t] (swap! app assoc :tool t :pending nil))
+
+(defn- world-at [sx sy] (b/screen->world (get-in @app [:board :freeboard/viewport]) [sx sy]))
+
+(defn- add-at [kind sx sy]
+  (let [[wx wy] (world-at sx sy)
+        id (b/gen-id)
+        base (case kind
+               :sticky {:item/w 180 :item/h 120 :item/fill "#ffeb8a" :text/runs [{:text ""}]}
+               :shape  {:item/w 140 :item/h 100 :item/fill "#cfe0ff"}
+               :text   {:item/w 200 :item/h 40  :item/fill "#ffffff" :text/runs [{:text ""}]})]
+    (swap! app update :board b/add-item (merge {:item/id id :item/kind kind :item/x wx :item/y wy} base))
+    id))
+
 ;; ---- input → ops -----------------------------------------------------------
 ;; NOTE: every fn invoked from index.html MUST carry ^:export, else the
 ;; :advanced release DCEs/munges it (dev :compile keeps names, hiding the bug —
 ;; surfaced by freeboard.debug: "TypeError: fb.add_sticky is not a function").
 (defn ^:export on-pointer-down [sx sy]
-  (let [board (:board @app)]
-    (if-let [hit (b/hit-test-screen board [sx sy])]
-      (swap! app assoc :drag {:mode :move :id (:item/id hit) :last [sx sy]}
-                       :board (b/bring-to-front board (:item/id hit)))
-      (swap! app assoc :drag {:mode :pan :last [sx sy]})))
+  (let [{:keys [tool board pending]} @app
+        hit (b/hit-test-screen board [sx sy])]
+    (case tool
+      "sticky" (add-at :sticky sx sy)
+      "shape"  (add-at :shape sx sy)
+      "text"   (begin-edit (add-at :text sx sy))
+      "pen"    (let [[wx wy] (world-at sx sy) id (b/gen-id)]
+                 (swap! app #(-> % (update :board b/add-item
+                                           {:item/id id :item/kind :ink :ink/points [[wx wy]]
+                                            :ink/width 3.0 :item/stroke "#222"
+                                            :item/x wx :item/y wy :item/w 1 :item/h 1})
+                                 (assoc :drag {:mode :ink :id id}))))
+      "connector" (when hit
+                    (if pending
+                      (do (when (not= pending (:item/id hit))
+                            (swap! app update :board b/add-connector pending (:item/id hit)))
+                          (swap! app assoc :pending nil))
+                      (swap! app assoc :pending (:item/id hit))))
+      ;; select (default): move item under cursor, else pan
+      (if hit
+        (swap! app assoc :drag {:mode :move :id (:item/id hit) :last [sx sy]}
+                         :board (b/bring-to-front board (:item/id hit)))
+        (swap! app assoc :drag {:mode :pan :last [sx sy]}))))
   (present!))
 
 (defn ^:export on-pointer-move [sx sy]
@@ -54,8 +89,9 @@
                        (update :board (fn [bd]
                                         (case mode
                                           :pan  (b/pan bd dx dy)
-                                          :move (b/move-item bd id (/ dx z) (/ dy z)))))
-                       (assoc-in [:drag :last] [sx sy]))))
+                                          :move (b/move-item bd id (/ dx z) (/ dy z))
+                                          :ink  (b/extend-ink bd id (world-at sx sy)))))
+                       (cond-> last (assoc-in [:drag :last] [sx sy])))))
       (present!))))
 
 (defn ^:export on-pointer-up [] (swap! app assoc :drag nil))

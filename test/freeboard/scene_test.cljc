@@ -19,9 +19,9 @@
       (is (= [20.0 40.0] (vec (take 2 (:transform/translation s)))))  ; world*zoom
       (is (= [200.0 100.0 1.0] (:transform/scale s)))                 ; w*zoom h*zoom
       (is (= "freeboard:quad" (:mesh/asset s)))
-      (is (= [1.0 0.0 0.0 1.0] (:material/tint s))))                  ; fill → tint
+      (is (= [1.0 0.0 0.0 1.0] (get-in s [:material/params :tint]))))  ; fill → tint (SDK reads [:material/params :tint])
     (testing "no-fill item falls back to per-kind tint"
-      (is (= (:frame sc/kind-tint) (:material/tint (first (filter #(= "f" (:kami/eid %)) ents))))))))
+      (is (= (:frame sc/kind-tint) (get-in (first (filter #(= "f" (:kami/eid %)) ents)) [:material/params :tint]))))))
 
 (deftest line-as-quad
   (testing "horizontal segment → quad covering the line, centred, width w"
@@ -43,6 +43,6 @@
 (deftest snapshot
   (let [bd (-> (b/new-board) (b/add-item {:item/kind :sticky :item/x 0 :item/y 0 :item/w 10 :item/h 10}))
         snap (sc/scene-snapshot bd)]
-    (is (= 2 (count (:snapshot/assets snap))))                        ; quad mesh + flat material
+    (is (= 3 (count (:snapshot/assets snap))))                        ; quad mesh + flat material + flat2d shader
     (is (some #(:camera/active? %) (:snapshot/entities snap)))        ; active camera present
     (is (= "freeboard:quad" (:asset/id (first (:snapshot/assets snap)))))))

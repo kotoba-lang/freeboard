@@ -24,6 +24,36 @@
    :shape  [0.80 0.85 1.0 1.0] :image [0.90 0.90 0.90 1.0]
    :connector [0.5 0.5 0.5 1.0] :ink [0.13 0.13 0.13 1.0]})
 
+;; ---- flat 2D shader (clj-authored WGSL, registered via register_shader) -----
+;; kami-render's default pipeline applies 3D diffuse lighting which mutes flat
+;; board colours. A board is 2D, so we register a *flat* pipeline (albedo·tint,
+;; no lighting) and tag every entity with :shader/asset → bright, exact colours.
+;; This is the data-driven shader path (ARCHITECTURE Model A): no wasm rebuild.
+;; The VsIn/bind-group layout must match host.rs build_pipeline (loc 0-7, group0
+;; camera, group1 material) and use entry points vs_main/fs_main.
+(def flat-shader-wgsl
+  "struct Camera { view_proj: mat4x4<f32> };
+@group(0) @binding(0) var<uniform> camera: Camera;
+struct Material { albedo: vec4<f32> };
+@group(1) @binding(0) var<uniform> material: Material;
+struct VsIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) uv: vec2<f32>,
+              @location(3) m0: vec4<f32>, @location(4) m1: vec4<f32>, @location(5) m2: vec4<f32>, @location(6) m3: vec4<f32>,
+              @location(7) tint: vec4<f32> };
+struct VsOut { @builtin(position) clip: vec4<f32>, @location(0) tint: vec4<f32> };
+@vertex fn vs_main(in: VsIn) -> VsOut {
+  let model = mat4x4<f32>(in.m0, in.m1, in.m2, in.m3);
+  var out: VsOut;
+  out.clip = camera.view_proj * model * vec4<f32>(in.pos, 1.0);
+  out.tint = in.tint;
+  return out;
+}
+@fragment fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
+  return material.albedo * in.tint;
+}")
+
+(def flat-shader {:asset/id "freeboard:flat2d" :asset/kind :shader
+                  :asset/data {:wgsl flat-shader-wgsl :layout ""}})
+
 (defn- draw->entity [d]
   (let [[sx sy sw sh] (:rect d)]
     {:kami/eid               (:eid d)
@@ -31,8 +61,13 @@
      :transform/scale        [(max 1.0 sw) (max 1.0 sh) 1.0]
      :mesh/asset             "freeboard:quad"
      :material/asset         "freeboard:flat"
-     :material/tint          (if (:fill d) (hex->rgba (:fill d))
-                                 (kind-tint (:kind d) [1.0 1.0 1.0 1.0]))}))
+     :shader/asset           "freeboard:flat2d"               ; flat (unlit) pipeline
+     ;; kami.render/merge-instances reads per-instance tint from
+     ;; [:material/params :tint] (NOT :material/tint) — match that or it defaults
+     ;; to white (found via freeboard.debug: entity had the colour but the draw
+     ;; packed [1 1 1 1]).
+     :material/params        {:tint (if (:fill d) (hex->rgba (:fill d))
+                                        (kind-tint (:kind d) [1.0 1.0 1.0 1.0]))}}))
 
 ;; ---- lines as quads (no separate line pipeline needed) --------------------
 (defn- sincos [a] #?(:clj [(Math/sin a) (Math/cos a)] :cljs [(js/Math.sin a) (js/Math.cos a)]))
@@ -59,7 +94,8 @@
      :transform/scale       [L (max 1.0 w) 1.0]
      :mesh/asset            "freeboard:quad"
      :material/asset        "freeboard:flat"
-     :material/tint         tint}))
+     :shader/asset          "freeboard:flat2d"
+     :material/params       {:tint tint}}))
 
 (defn- line-entities [d]
   (let [tint (if (:stroke d) (hex->rgba (:stroke d)) (:connector kind-tint))
@@ -116,5 +152,5 @@
    canvas pixel size [w h] for the ortho camera."
   ([board] (scene-snapshot board [1280 720]))
   ([board screen]
-   {:snapshot/assets   [quad-mesh flat-material]
+   {:snapshot/assets   [quad-mesh flat-material flat-shader]
     :snapshot/entities (conj (board->entities board) (camera-entity screen))}))

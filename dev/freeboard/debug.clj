@@ -22,7 +22,9 @@
       str (json/parse-string true)))
 
 (defn- click-add-sticky [page]
-  (.evaluate page "() => { const b=document.getElementById('add-sticky'); if(b){b.click();return true;} return false; }"))
+  ;; call the API directly (the toolbar button is now a tool-mode toggle)
+  (.evaluate page "() => { const w=window.freeboard && window.freeboard.web;
+                           if(w && w.add_sticky){ w.add_sticky(640,360); return true; } return false; }"))
 
 (def ^:private hints
   {:bundle-load-error        "'goog is not defined' — a shadow-cljs DEV (:compile) bundle was loaded via ESM import(); the goog module-loader can't bootstrap that way. Build the :advanced RELEASE (single self-contained file): scripts/build.sh / `clojure -M:shadow ... release app`."

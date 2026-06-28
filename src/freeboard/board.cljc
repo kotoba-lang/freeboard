@@ -44,7 +44,7 @@
            {:x (- wx (/ sx z)) :y (- wy (/ sy z)) :zoom z})))
 
 ;; ---- items -----------------------------------------------------------------
-(defn- gen-id []
+(defn gen-id []
   #?(:clj (str (java.util.UUID/randomUUID))
      :cljs (str (random-uuid))))
 
