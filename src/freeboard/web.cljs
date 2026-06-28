@@ -34,7 +34,10 @@
       (swap! app update :frame inc))))
 
 ;; ---- input → ops -----------------------------------------------------------
-(defn on-pointer-down [sx sy]
+;; NOTE: every fn invoked from index.html MUST carry ^:export, else the
+;; :advanced release DCEs/munges it (dev :compile keeps names, hiding the bug —
+;; surfaced by freeboard.debug: "TypeError: fb.add_sticky is not a function").
+(defn ^:export on-pointer-down [sx sy]
   (let [board (:board @app)]
     (if-let [hit (b/hit-test-screen board [sx sy])]
       (swap! app assoc :drag {:mode :move :id (:item/id hit) :last [sx sy]}
@@ -42,7 +45,7 @@
       (swap! app assoc :drag {:mode :pan :last [sx sy]})))
   (present!))
 
-(defn on-pointer-move [sx sy]
+(defn ^:export on-pointer-move [sx sy]
   (when-let [{:keys [mode id last]} (:drag @app)]
     (let [[lx ly] last dx (- sx lx) dy (- sy ly)
           z (get-in @app [:board :freeboard/viewport :zoom])]
@@ -55,23 +58,23 @@
                        (assoc-in [:drag :last] [sx sy]))))
       (present!))))
 
-(defn on-pointer-up [] (swap! app assoc :drag nil))
+(defn ^:export on-pointer-up [] (swap! app assoc :drag nil))
 
-(defn on-wheel [sx sy delta]
+(defn ^:export on-wheel [sx sy delta]
   (let [z (get-in @app [:board :freeboard/viewport :zoom])
         nz (* z (if (neg? delta) 1.1 (/ 1.0 1.1)))]
     (swap! app update :board b/zoom-at nz [sx sy])
     (present!)))
 
 ;; ---- toolbar ops -----------------------------------------------------------
-(defn add-sticky [sx sy]
+(defn ^:export add-sticky [sx sy]
   (let [[wx wy] (b/screen->world (get-in @app [:board :freeboard/viewport]) [sx sy])]
     (swap! app update :board b/add-item
            {:item/kind :sticky :item/x wx :item/y wy :item/w 180 :item/h 120
             :item/fill "#ffeb8a" :text/runs [{:text ""}]})
     (present!)))
 
-(defn import-doc!
+(defn ^:export import-doc!
   "Drop a kasane-normalized doc onto the canvas at a screen point."
   [kasane-doc sx sy]
   (let [[wx wy] (b/screen->world (get-in @app [:board :freeboard/viewport]) [sx sy])]
