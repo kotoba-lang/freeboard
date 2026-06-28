@@ -7,7 +7,7 @@ KE="$HERE/../kami-engine"
 
 echo "==> [1/2] kami-clj-host wasm (wgpu host)"
 if command -v wasm-pack >/dev/null; then
-  (cd "$KE/kami-clj-host" && wasm-pack build --target web --features host --out-dir "$HERE/public/wasm")
+  wasm-pack build "$KE/kami-clj-host" --target web --out-dir "$HERE/public/wasm" -- --features host
 else
   echo "!! wasm-pack not found — install: cargo install wasm-pack (skipping GPU host)"
 fi
