@@ -122,6 +122,13 @@
   [board id text]
   (update-item board id assoc :text/runs (if (string? text) [{:text text}] (vec text))))
 
+(defn text-of
+  "Plain concatenated text of an item's runs (\"\" if none)."
+  [it]
+  (apply str (map :text (:text/runs it))))
+
+(def editable? #{:text :sticky})
+
 ;; ---- hit testing -----------------------------------------------------------
 (defn- in-rect? [{:item/keys [x y w h]} [wx wy]]
   (and (<= x wx (+ x w)) (<= y wy (+ y h))))

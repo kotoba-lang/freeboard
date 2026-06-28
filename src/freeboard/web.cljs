@@ -15,21 +15,22 @@
             [kami.backend.browser :as kb]))
 
 (defonce app (atom {:board (b/new-board "Freeboard")
-                    :drag  nil :frame 0}))                     ; {:mode :item-id :last [x y]}
+                    :drag  nil :frame 0 :w 1280 :h 720}))      ; {:mode :item-id :last [x y]}
 
 ;; ---- kami host (kami-render/wgpu via kami-engine-sdk-clj) -------------------
 (defonce ^:private backend (atom nil))
-(defonce ^:private aspect  (atom (/ 16.0 9.0)))
 
 (defn- present!
   "Build the kami ECS world from the board, assemble one render-IR frame, and
-   submit it (v2 packing = per-instance tint). The renderer is a dumb executor."
+   submit it (v2 packing = per-instance tint). The renderer is a dumb executor.
+   Uses an orthographic screen-space camera sized to the canvas."
   []
   (when-let [be @backend]
-    (let [snap  (sc/scene-snapshot (:board @app))
+    (let [{:keys [board w h frame]} @app
+          snap  (sc/scene-snapshot board [w h])
           world (ecs/load-snapshot snap)                       ; 1-arg: snapshot → fresh world
-          frame (kr/frame world {:n (:frame @app) :aspect @aspect :clear sc/nintendo-cream})]
-      (gpu/submit! be frame {:tint? true})
+          fr    (kr/frame world {:n frame :aspect (/ (double w) (max 1.0 (double h))) :clear sc/nintendo-cream})]
+      (gpu/submit! be fr {:tint? true})
       (swap! app update :frame inc))))
 
 ;; ---- input → ops -----------------------------------------------------------
@@ -78,9 +79,48 @@
     (present!)))
 
 (defn ^:export resize [w h]
-  (reset! aspect (/ (double w) (max 1.0 (double h))))
+  (swap! app assoc :w w :h h)
   (when-let [be @backend] (gpu/resize! be w h))
   (present!))
+
+;; ---- inline text editing (DOM overlay) -------------------------------------
+(declare commit-edit!)
+
+(defn ^:export begin-edit
+  "Open a textarea overlay over an editable item (text/sticky) for inline edit."
+  [id]
+  (when-let [it (b/item-by-id (:board @app) id)]
+    (when (b/editable? (:item/kind it))
+      (let [vp (get-in @app [:board :freeboard/viewport])
+            [sx sy] (b/world->screen vp [(:item/x it) (:item/y it)])
+            z (get vp :zoom) dpr (or js/window.devicePixelRatio 1)
+            ta (.createElement js/document "textarea")]
+        (set! (.-id ta) "fb-editor")
+        (set! (.-value ta) (b/text-of it))
+        (set! (.. ta -style -cssText)
+              (str "position:fixed;z-index:10;font:14px system-ui;padding:6px;resize:none;"
+                   "border:1px solid #caa83a;border-radius:8px;background:#fffef5;"
+                   "left:" (/ sx dpr) "px;top:" (/ sy dpr) "px;"
+                   "width:" (/ (* (:item/w it) z) dpr) "px;height:" (/ (* (:item/h it) z) dpr) "px;"))
+        (.appendChild (.-body js/document) ta)
+        (.focus ta)
+        (swap! app assoc :editing id)
+        (.addEventListener ta "blur" (fn [_] (commit-edit!)))
+        (.addEventListener ta "keydown"
+                           (fn [e] (when (and (= "Enter" (.-key e)) (not (.-shiftKey e)))
+                                     (.preventDefault e) (commit-edit!))))))))
+
+(defn commit-edit! []
+  (when-let [id (:editing @app)]
+    (when-let [ta (.getElementById js/document "fb-editor")]
+      (swap! app update :board b/set-text id (.-value ta))
+      (.remove ta))
+    (swap! app assoc :editing nil)
+    (present!)))
+
+(defn ^:export on-double-click [sx sy]
+  (when-let [hit (b/hit-test-screen (:board @app) [sx sy])]
+    (begin-edit (:item/id hit))))
 
 ;; ---- boot ------------------------------------------------------------------
 (defn ^:export boot

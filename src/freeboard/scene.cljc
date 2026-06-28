@@ -78,12 +78,14 @@
           (mapcat line-entities (filter #(#{:connector :ink} (:kind %)) draws)))))
 
 (defn camera-entity
-  "Active camera. 2D board uses a positioned perspective camera (ortho camera-ir
-   is a small SDK refinement — see ADR); items live in the z≈0 screen plane."
-  []
+  "Active **orthographic** screen-space camera (kami.render ortho support added
+   in kami-engine-sdk-clj): pixel (0,0) top-left, y down — so the baked
+   screen-space item quads are pixel-correct. `[w h]` = canvas pixel size."
+  [[w h]]
   {:kami/eid :freeboard/camera :camera/active? true
-   :camera/fov 60.0 :camera/near 0.1 :camera/far 100000.0
-   :transform/translation [0.0 0.0 1000.0]})
+   :camera/projection :ortho :camera/ortho-w (double w) :camera/ortho-h (double h)
+   :camera/near -1.0 :camera/far 1.0
+   :transform/translation [0.0 0.0 0.0]})
 
 (def quad-mesh
   ;; unit quad [0,0]→[1,1], pos-only (final vertex layout tuned to kami-render's
@@ -96,7 +98,9 @@
 
 (defn scene-snapshot
   "{:snapshot/assets [...] :snapshot/entities [...]} — assets via
-   kami.gpu/ensure-assets!, entities via kami.ecs/world."
-  [board]
-  {:snapshot/assets   [quad-mesh flat-material]
-   :snapshot/entities (conj (board->entities board) (camera-entity))})
+   kami.gpu/ensure-assets!, entities via kami.ecs/load-snapshot. `screen` is the
+   canvas pixel size [w h] for the ortho camera."
+  ([board] (scene-snapshot board [1280 720]))
+  ([board screen]
+   {:snapshot/assets   [quad-mesh flat-material]
+    :snapshot/entities (conj (board->entities board) (camera-entity screen))}))

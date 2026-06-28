@@ -40,7 +40,11 @@
   (let [bd (-> (b/new-board) (b/add-item {:item/id "t" :item/kind :text :item/x 0 :item/y 0 :item/w 100 :item/h 30}))
         bd (b/set-text bd "t" "Hello")]
     (is (= [{:text "Hello"}] (:text/runs (b/item-by-id bd "t"))))
-    (is (= [{:text "x"} {:text "y"}] (:text/runs (b/item-by-id (b/set-text bd "t" [{:text "x"} {:text "y"}]) "t"))))))
+    (is (= [{:text "x"} {:text "y"}] (:text/runs (b/item-by-id (b/set-text bd "t" [{:text "x"} {:text "y"}]) "t"))))
+    (testing "text-of concatenates runs; editable? gates the inline editor"
+      (is (= "Hello" (b/text-of (b/item-by-id bd "t"))))
+      (is (= "xy" (b/text-of (b/item-by-id (b/set-text bd "t" [{:text "x"} {:text "y"}]) "t"))))
+      (is (b/editable? :text)) (is (b/editable? :sticky)) (is (not (b/editable? :connector))))))
 
 (deftest snapshot-roundtrip
   (let [bd (-> (two-items) (b/add-connector "a" "c") (b/set-text "a" "note")

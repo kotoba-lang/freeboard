@@ -27,6 +27,7 @@
     fit();
 
     const pt = e => [e.clientX*devicePixelRatio, e.clientY*devicePixelRatio];
+    canvas.addEventListener("dblclick", e => fb.on_double_click(...pt(e)));
     canvas.addEventListener("pointerdown", e => fb.on_pointer_down(...pt(e)));
     canvas.addEventListener("pointermove", e => fb.on_pointer_move(...pt(e)));
     addEventListener("pointerup", () => fb.on_pointer_up());
