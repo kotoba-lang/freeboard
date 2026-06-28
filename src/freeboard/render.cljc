@@ -15,6 +15,21 @@
    Freeform-style canvas)."
   [0.94 0.917 0.839 1.0])
 
+(defn cubic-bezier
+  "Sample a cubic Bézier P0→P3 (control P1,P2) into `n`+1 points (incl. ends)."
+  [[p0x p0y] [p1x p1y] [p2x p2y] [p3x p3y] n]
+  (mapv (fn [i] (let [t (/ (double i) n) u (- 1.0 t)
+                      a (* u u u) b (* 3 u u t) c (* 3 u t t) d (* t t t)]
+                  [(+ (* a p0x) (* b p1x) (* c p2x) (* d p3x))
+                   (+ (* a p0y) (* b p1y) (* c p2y) (* d p3y))]))
+        (range (inc n))))
+
+(defn connector-route
+  "Smooth S-curve polyline between two screen points (horizontal tangents)."
+  [[ax ay] [bx by]]
+  (let [dx (* 0.5 (- bx ax))]
+    (cubic-bezier [ax ay] [(+ ax dx) ay] [(- bx dx) by] [bx by] 16)))
+
 (defn- item->draw [board vp it]
   (let [[sx sy] (b/world->screen vp [(:item/x it) (:item/y it)])
         z       (:zoom vp)
@@ -31,8 +46,10 @@
       :ink   (assoc base :ink/polyline (mapv #(b/world->screen vp %) (:ink/points it []))
                     :ink/width (* (:ink/width it 2.0) z))
       :frame (assoc base :frame/title (:frame/title it))
-      :connector (let [eps (b/connector-endpoints board it)]
-                   (assoc base :connector/line (when eps (mapv #(b/world->screen vp %) eps))))
+      :connector (when-let [eps (b/connector-endpoints board it)]
+                   (let [[a b'] (mapv #(b/world->screen vp %) eps)]
+                     (assoc base :connector/polyline (connector-route a b'))))
+      :group (assoc base :frame/title (:frame/title it) :group? true)
       base)))
 
 (defn draw-list
@@ -45,8 +62,7 @@
      :viewport vp
      :draws (->> (b/items-z-asc board)
                  (map #(item->draw board vp %))
-                 ;; drop connectors whose endpoints vanished
-                 (remove #(and (= :connector (:kind %)) (nil? (:connector/line %))))
+                 (remove nil?)                                 ; connectors with vanished endpoints → nil
                  vec)}))
 
 ;; ---- kami ECS adapter ------------------------------------------------------

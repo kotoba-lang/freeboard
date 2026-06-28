@@ -37,8 +37,8 @@
                  (b/add-ink [[0 0] [10 10] [20 0]] 3.0 "#222"))
           ents (sc/board->entities bd)]
       (is (every? #(= "freeboard:quad" (:mesh/asset %)) ents))
-      ;; 2 stickies + 1 connector seg + 2 ink segs = 5 entities
-      (is (= 5 (count ents))))))
+      ;; 2 stickies + 16 connector segs (bézier) + 2 ink segs = 20 entities
+      (is (= 20 (count ents))))))
 
 (deftest snapshot
   (let [bd (-> (b/new-board) (b/add-item {:item/kind :sticky :item/x 0 :item/y 0 :item/w 10 :item/h 10}))

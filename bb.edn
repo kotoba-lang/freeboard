@@ -1,6 +1,10 @@
 {:paths ["src" "test" "resources"]
  :tasks
- {test
+ {build {:doc "Production build: kami-clj-host wasm + cljs brain (scripts/build.sh)."
+         :task (clojure.java.shell/sh "bash" "scripts/build.sh")}
+  serve {:doc "Serve the built app at http://localhost:8200."
+         :task (babashka.process/shell {:dir "public"} "python3 -m http.server 8200")}
+  test
   {:doc "Run the pure-cljc board core tests (no external deps)."
    :requires ([clojure.test :as t] [freeboard.board-test] [freeboard.ops-test]
               [freeboard.scene-test] [freeboard.collab-test])

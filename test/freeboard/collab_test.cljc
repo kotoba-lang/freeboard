@@ -33,3 +33,29 @@
   (testing "dedup by op/id is idempotent"
     (let [l [(ts (c/op "A" 0 :move {:id "x" :dx 1 :dy 0}) 1)]]
       (is (= (c/order l) (c/order (concat l l l)))))))
+
+(deftest two-client-sync
+  "Simulate the kotoba sync transport (push-ops!/pull-ops) with a shared op log
+   (an atom standing in for the kotoba datomic.* feed). Two clients edit
+   concurrently, push, pull each other's ops, and replay → identical boards."
+  (let [server (atom [])                                       ; shared op log (≈ kotoba graph)
+        push!  (fn [ops] (swap! server into ops))
+        pull   (fn [] @server)
+        base   (-> (b/new-board)
+                   (b/add-item {:item/id "x" :item/kind :sticky :item/x 0 :item/y 0 :item/w 10 :item/h 10}))]
+    ;; client A and B each make + push local ops (interleaved, concurrent ts)
+    (push! [(ts (c/op "A" 0 :move {:id "x" :dx 40 :dy 0}) 10)])
+    (push! [(ts (c/op "B" 0 :add-item {:item {:item/id "y" :item/kind :text :item/x 5 :item/y 5 :item/w 8 :item/h 8}}) 11)])
+    (push! [(ts (c/op "A" 1 :set-text {:id "y" :text "hi"}) 12)
+            (ts (c/op "B" 1 :move {:id "x" :dx 0 :dy 30}) 13)])
+    ;; each client pulls the full shared log and replays from base
+    (let [board-a (c/replay base (pull))
+          board-b (c/replay base (pull))]
+      (is (= board-a board-b))                                 ; both clients converge
+      (is (= [40 30] [(:item/x (b/item-by-id board-a "x")) (:item/y (b/item-by-id board-a "x"))]))
+      (is (= "hi" (-> (b/item-by-id board-a "y") :text/runs first :text))))
+    ;; late joiner with only a subset still converges once it pulls the rest
+    (let [partial-then-full (c/replay base (take 2 (pull)))
+          full (c/replay base (pull))]
+      (is (not= partial-then-full full))                       ; subset differs
+      (is (= full (c/replay base (pull)))))))                  ; full pull is deterministic

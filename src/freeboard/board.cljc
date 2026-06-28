@@ -129,6 +129,55 @@
 
 (def editable? #{:text :sticky})
 
+;; ---- selection -------------------------------------------------------------
+(defn selection [board] (:freeboard/selection board #{}))
+(defn select [board ids] (assoc board :freeboard/selection (set ids)))
+(defn select-toggle [board id]
+  (update board :freeboard/selection (fn [s] (let [s (or s #{})] (if (s id) (disj s id) (conj s id))))))
+(defn clear-selection [board] (assoc board :freeboard/selection #{}))
+(defn selected? [board id] (contains? (selection board) id))
+
+(defn- rects-overlap? [[ax ay aw ah] [bx by bw bh]]
+  (and (< ax (+ bx bw)) (< bx (+ ax aw)) (< ay (+ by bh)) (< by (+ ay ah))))
+
+(defn select-in-rect
+  "Rubber-band select: every item whose bbox overlaps the world rect [x y w h]."
+  [board [x y w h]]
+  (select board (->> (:freeboard/items board)
+                     (filter #(rects-overlap? [x y w h] [(:item/x %) (:item/y %) (:item/w %) (:item/h %)]))
+                     (map :item/id))))
+
+(defn move-selection [board dx dy]
+  (reduce (fn [bd id] (move-item bd id dx dy)) board (selection board)))
+
+;; ---- grouping --------------------------------------------------------------
+(defn- enclosing-bbox [items]
+  (let [xs (map :item/x items) ys (map :item/y items)
+        x2 (map #(+ (:item/x %) (:item/w %)) items) y2 (map #(+ (:item/y %) (:item/h %)) items)
+        x (apply min xs) y (apply min ys)]
+    [x y (- (apply max x2) x) (- (apply max y2) y)]))
+
+(defn group-selection
+  "Wrap the current selection in a :group item (bbox encloses members); members
+   are tagged with :item/group <group-id>. No-op for <2 selected."
+  [board]
+  (let [ids (selection board)
+        members (filter #(ids (:item/id %)) (:freeboard/items board))]
+    (if (< (count members) 2)
+      board
+      (let [[x y w h] (enclosing-bbox members)
+            gid (gen-id)
+            bd (add-item board {:item/id gid :item/kind :group :item/x x :item/y y :item/w w :item/h h
+                                :group/members (vec ids) :item/stroke "#caa83a"})]
+        (reduce (fn [b id] (update-item b id assoc :item/group gid)) bd ids)))))
+
+(defn ungroup
+  "Remove a group item, clearing its members' :item/group tag."
+  [board gid]
+  (let [members (:group/members (item-by-id board gid))]
+    (-> (reduce (fn [b id] (update-item b id dissoc :item/group)) board members)
+        (delete-item gid))))
+
 ;; ---- hit testing -----------------------------------------------------------
 (defn- in-rect? [{:item/keys [x y w h]} [wx wy]]
   (and (<= x wx (+ x w)) (<= y wy (+ y h))))

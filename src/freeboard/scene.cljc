@@ -65,15 +65,17 @@
   (let [tint (if (:stroke d) (hex->rgba (:stroke d)) (:connector kind-tint))
         z    (:z d)]
     (case (:kind d)
-      :connector (when-let [ln (:connector/line d)] [(seg->entity (str (:eid d) ":l") ln 2.0 z tint)])
+      :connector (let [pts (:connector/polyline d)]            ; bézier-sampled S-curve
+                   (map-indexed (fn [i seg] (seg->entity (str (:eid d) ":" i) seg 2.0 z tint))
+                                (partition 2 1 pts)))
       :ink       (let [pts (:ink/polyline d) w (:ink/width d 2.0)]
                    (map-indexed (fn [i seg] (seg->entity (str (:eid d) ":" i) seg w z tint))
                                 (partition 2 1 pts)))
       nil)))
 
 (defn board->entities
-  "Renderable quad entities. Rect items → one quad; connectors/ink → thin quad
-   segments (so they render on the same quad+tint pipeline, no line pipeline)."
+  "Renderable quad entities. Rect items → one quad; connectors (bézier curves)
+   and ink → thin quad segments (same quad+tint pipeline, no line pipeline)."
   [board]
   (let [draws (:draws (r/draw-list board))]
     (into (mapv draw->entity (remove #(#{:connector :ink} (:kind %)) draws))

@@ -17,13 +17,37 @@
       (is (= [[50.0 50.0] [350.0 50.0]] (b/connector-endpoints bd conn)))
       (let [bd (b/move-item bd "a" 0 100)]
         (is (= [[50.0 150.0] [350.0 50.0]] (b/connector-endpoints bd conn)))))
-    (testing "render emits a screen-space line; vanishes if endpoint deleted"
+    (testing "render emits a bézier S-curve polyline ending at the item centers"
       (let [dl (r/draw-list bd)
-            cd (first (filter #(= :connector (:kind %)) (:draws dl)))]
-        (is (= [[50.0 50.0] [350.0 50.0]] (:connector/line cd))))
+            cd (first (filter #(= :connector (:kind %)) (:draws dl)))
+            poly (:connector/polyline cd)]
+        (is (= 17 (count poly)))                              ; 16 segments
+        (is (= [50.0 50.0] (first poly)))                     ; starts at item a centre
+        (is (= [350.0 50.0] (last poly))))                    ; ends at item c centre
       (let [bd (b/delete-item bd "a")
             dl (r/draw-list bd)]
         (is (empty? (filter #(= :connector (:kind %)) (:draws dl))))))))
+
+(deftest selection-and-grouping
+  (let [bd (-> (b/new-board)
+               (b/add-item {:item/id "p" :item/kind :sticky :item/x 0 :item/y 0 :item/w 100 :item/h 100})
+               (b/add-item {:item/id "q" :item/kind :sticky :item/x 200 :item/y 0 :item/w 100 :item/h 100})
+               (b/add-item {:item/id "r" :item/kind :sticky :item/x 0 :item/y 400 :item/w 100 :item/h 100}))]
+    (testing "rubber-band select picks overlapping items only"
+      (is (= #{"p" "q"} (b/selection (b/select-in-rect bd [-10 -10 350 120])))))
+    (testing "move-selection shifts all selected"
+      (let [bd (-> bd (b/select ["p" "q"]) (b/move-selection 10 5))]
+        (is (= [10 5] [(:item/x (b/item-by-id bd "p")) (:item/y (b/item-by-id bd "p"))]))
+        (is (= [210 5] [(:item/x (b/item-by-id bd "q")) (:item/y (b/item-by-id bd "q"))]))
+        (is (= [0 400] [(:item/x (b/item-by-id bd "r")) (:item/y (b/item-by-id bd "r"))])))) ; unselected stays
+    (testing "group encloses members + tags them; ungroup reverses"
+      (let [bd (-> bd (b/select ["p" "q"]) b/group-selection)
+            g  (first (filter #(= :group (:item/kind %)) (:freeboard/items bd)))]
+        (is (= [0 0 300 100] [(:item/x g) (:item/y g) (:item/w g) (:item/h g)]))  ; bbox over p,q
+        (is (= (:item/id g) (:item/group (b/item-by-id bd "p"))))
+        (let [bd (b/ungroup bd (:item/id g))]
+          (is (nil? (b/item-by-id bd (:item/id g))))
+          (is (nil? (:item/group (b/item-by-id bd "p")))))))))
 
 (deftest ink
   (let [bd (-> (b/new-board) (b/add-ink [[10 10] [20 30] [40 15]] 3.0 "#222"))

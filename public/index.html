@@ -15,16 +15,23 @@
   <canvas id="stage"></canvas>
   <div id="toolbar"><button id="add-sticky">＋ sticky</button></div>
 
-  <!-- The cljs brain module (freeboard.web) creates the kami.gpu browser
-       backend itself (kami-clj-host wasm → kami-render/wgpu) inside boot. -->
+  <!-- The cljs brain (freeboard.web) drives board state + input; the kami-clj-host
+       wasm (kami-render/wgpu) is loaded dynamically so a missing/failed wasm
+       never blanks the toolbar (same pattern as kami-app-sip-clj). -->
   <script type="module">
     await import("/js/freeboard.js");             // shadow-cljs output (advanced)
     const fb = window.freeboard.web;
     const canvas = document.getElementById("stage");
     const fit = () => { canvas.width = innerWidth*devicePixelRatio; canvas.height = innerHeight*devicePixelRatio; fb.resize(canvas.width, canvas.height); };
     addEventListener("resize", fit);
-    await fb.boot("stage");                         // canvas id → WebGPU adapter/device + assets, then present
-    fit();
+
+    try {
+      const mod = await import('/wasm/kami_clj_host.js'); // wasm-pack build kami-clj-host --target web --features host
+      await mod.default();                                // wasm-bindgen init (WebGPU adapter/device)
+      window.KamiCljHost = mod.KamiCljHost;               // global the kami.backend.browser resolves
+      await fb.boot("stage");
+      fit();
+    } catch (e) { console.warn("kami-render host unavailable — run scripts/build.sh:", e); }
 
     const pt = e => [e.clientX*devicePixelRatio, e.clientY*devicePixelRatio];
     canvas.addEventListener("dblclick", e => fb.on_double_click(...pt(e)));
