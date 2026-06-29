@@ -55,7 +55,19 @@ struct VsOut { @builtin(position) clip: vec4<f32>, @location(0) tint: vec4<f32> 
                   :asset/data {:wgsl flat-shader-wgsl :layout ""}})
 
 (defn- draw->entity [d]
-  (let [[sx sy sw sh] (:rect d)]
+  (let [[sx sy sw sh] (:rect d)
+        text (when (= :text (:kind d)) (apply str (map :text (:text/runs d))))]
+    (if (seq text)
+      ;; text → a glyph-quad mesh ("text:<eid>", registered via register-text!)
+      ;; sampling the host SDF atlas; entity places the text block (pixel-space
+      ;; mesh, so scale 1). Dark ink unless an explicit fill is given.
+      {:kami/eid              (:eid d)
+       :transform/translation [sx sy (* 0.001 (:z d))]
+       :transform/scale       [1.0 1.0 1.0]
+       :mesh/asset            (str "text:" (:eid d))
+       :material/asset        "freeboard:flat"
+       :texture/asset         "kami:glyph-atlas"
+       :material/params       {:tint (if (:fill d) (hex->rgba (:fill d)) [0.12 0.12 0.12 1.0])}}
     (cond-> {:kami/eid               (:eid d)
              :transform/translation  [sx sy (* 0.001 (:z d))]  ; small z for stable layering
              :transform/scale        [(max 1.0 sw) (max 1.0 sh) 1.0]
@@ -70,7 +82,7 @@ struct VsOut { @builtin(position) clip: vec4<f32>, @location(0) tint: vec4<f32> 
       ;; image items sample a registered texture — host selects the textured
       ;; pipeline when :texture/asset is present; tint white = unmodulated image.
       (:image/texture d) (assoc :texture/asset (:image/texture d)
-                                :material/params {:tint [1.0 1.0 1.0 1.0]}))))
+                                :material/params {:tint [1.0 1.0 1.0 1.0]})))))
 
 ;; ---- lines as quads (no separate line pipeline needed) --------------------
 (defn- sincos [a] #?(:clj [(Math/sin a) (Math/cos a)] :cljs [(js/Math.sin a) (js/Math.cos a)]))

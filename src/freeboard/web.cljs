@@ -49,7 +49,7 @@
         base (case kind
                :sticky {:item/w 180 :item/h 120 :item/fill "#ffeb8a" :text/runs [{:text ""}]}
                :shape  {:item/w 140 :item/h 100 :item/fill "#cfe0ff"}
-               :text   {:item/w 200 :item/h 40  :item/fill "#ffffff" :text/runs [{:text ""}]})]
+               :text   {:item/w 200 :item/h 40  :text/runs [{:text ""}]})]
     (swap! app update :board b/add-item (merge {:item/id id :item/kind kind :item/x wx :item/y wy} base))
     id))
 
@@ -207,8 +207,11 @@
 (defn commit-edit! []
   (when-let [id (:editing @app)]
     (when-let [ta (.getElementById js/document "fb-editor")]
-      (swap! app update :board b/set-text id (.-value ta))
-      (.remove ta))
+      (let [v (.-value ta)]
+        (swap! app update :board b/set-text id v)
+        (.remove ta)
+        ;; (re)build this text item's glyph mesh on the host so it renders
+        (when-let [be @backend] (gpu/register-text! be (str "text:" id) v 48))))
     (swap! app assoc :editing nil)
     (present!)))
 
