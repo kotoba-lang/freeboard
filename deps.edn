@@ -1,23 +1,20 @@
 ;; freeboard — an Apple-Freeform-style infinite-canvas board.
-;; clj/cljc is the brain (board model + ops); the GPU work stays on kami-render
-;; (Rust/wgpu) via kami-engine-sdk-clj's render-IR (same split as
-;; kami-app-sip-clj); kasane imports design files (PSD/PDF/PNG/SVG/…) onto the
-;; canvas; kotoba is the content-addressed durable + collaborative layer.
+;; clj/cljc is the brain (board model + ops); browser/render hosts consume the
+;; render-IR as external adapters. kasane imports design files (PSD/PDF/PNG/
+;; SVG/…) onto the canvas; kotoba is the content-addressed durable +
+;; collaborative layer.
 ;; See ADR-2606280200.
 {:paths ["src" "resources"]
 
  :deps {org.clojure/clojure       {:mvn/version "1.12.0"}
-        ;; engine SDK: scene/ecs/render-IR contract over kami-render (wgpu)
-        gftd/kami-engine-sdk-clj  {:local/root "../kami-engine/kami-engine-sdk-clj"}
+        ;; engine SDK: scene/ecs/render-IR contract for host adapters
+        io.github.kotoba-lang/kami-engine-sdk {:local/root "../kami-engine/kami-engine-sdk-clj"}
         ;; design-file importer (PSD/PDF/AI/PNG/SVG/Sketch/OOXML/…)
-        com-junkawasaki/kasane    {:local/root "../kasane"}}
+        io.github.kotoba-lang/kasane {:local/root "../kasane"}}
 
  :aliases
  {:malli  {:extra-deps {metosin/malli {:mvn/version "0.16.4"}}}      ; freeboard.schema (validation)
-  :shadow {:extra-deps {thheller/shadow-cljs {:mvn/version "2.28.20"}}}
-  :test   {:extra-paths ["test"]}
-  ;; freeboard.debug — live browser diagnosis via browser-use-clj (Playwright)
-  :debug  {:extra-paths ["dev"]
-           :extra-deps {io.github.com-junkawasaki/browser-use-clj {:local/root "../browser-use-clj"}
-                        com.microsoft.playwright/playwright {:mvn/version "1.44.0"}
-                        cheshire/cheshire {:mvn/version "5.13.0"}}}}}
+  :test   {:extra-paths ["test"]
+           :extra-deps {io.github.cognitect-labs/test-runner
+                        {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+           :main-opts ["-m" "cognitect.test-runner"]}}}

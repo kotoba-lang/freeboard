@@ -4,12 +4,12 @@
    attrs kami.render queries (`:kami/eid` `:transform/translation`
    `:transform/scale` `:mesh/asset` `:material/asset` `:material/tint`); per-item
    fill → per-instance tint (v2 packing). The viewport (pan/zoom) is baked into
-   screen-space transforms (2D). web.cljs feeds these to kami.ecs/world →
+   screen-space transforms (2D). Host adapters feed these to kami.ecs/world →
    kami.render/frame → kami.gpu/submit!. See ADR-2606280200."
   (:require [freeboard.board :as b]
             [freeboard.render :as r]))
 
-(def nintendo-cream r/nintendo-cream)                          ; re-export for web.cljs
+(def nintendo-cream r/nintendo-cream)
 
 (defn hex->rgba
   "\"#rrggbb\" → [r g b 1.0] floats (nil/invalid → white)."

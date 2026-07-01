@@ -1,6 +1,6 @@
 (ns freeboard.render
   "Board → kami render-IR. Following kami-app-sip-clj's pattern: clj is the
-   brain, the GPU work stays on kami-render (Rust/wgpu) via kami-engine-sdk-clj.
+   brain, browser/GPU execution belongs to host adapters over kami-engine-sdk-clj.
    For a flat infinite canvas we bake the viewport (pan/zoom) into screen-space
    quads (2D, kami-ui-gpu), z-sorted, with an identity ortho camera — so the
    renderer is a dumb executor of this draw-list. See ADR-2606280200.

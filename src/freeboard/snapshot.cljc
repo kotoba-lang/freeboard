@@ -1,8 +1,8 @@
 (ns freeboard.snapshot
   "Board persistence (pure cljc): canonical EDN serialization + a Datom
    projection for kotoba's QuadStore (content-addressed, collaborative). The
-   browser durable client (freeboard.kotoba) puts/gets the EDN blob by CID and
-   can also transact the datoms; this ns is the pure, testable core. See
+   host adapter puts/gets the EDN blob by CID and can also transact the datoms;
+   this ns is the pure, testable core. See
    ADR-2606280200."
   #?(:clj  (:require [clojure.edn :as edn])
      :cljs (:require [cljs.reader :as edn])))

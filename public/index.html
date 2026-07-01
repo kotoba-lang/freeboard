@@ -23,36 +23,6 @@
     <button data-tool="pen">✎ pen</button>
   </div>
 
-  <!-- The cljs brain (freeboard.web) drives board state + input; the kami-clj-host
-       wasm (kami-render/wgpu) is loaded dynamically so a missing/failed wasm
-       never blanks the toolbar (same pattern as kami-app-sip-clj). -->
-  <script type="module">
-    await import("/js/freeboard.js");             // shadow-cljs output (advanced)
-    const fb = window.freeboard.web;
-    const canvas = document.getElementById("stage");
-    const fit = () => { canvas.width = innerWidth*devicePixelRatio; canvas.height = innerHeight*devicePixelRatio; fb.resize(canvas.width, canvas.height); };
-    addEventListener("resize", fit);
-
-    try {
-      const mod = await import('/wasm/kami_clj_host.js'); // wasm-pack build kami-clj-host --target web --features host
-      await mod.default();                                // wasm-bindgen init (WebGPU adapter/device)
-      window.KamiCljHost = mod.KamiCljHost;               // global the kami.backend.browser resolves
-      await fb.boot("stage");
-      fit();
-    } catch (e) { console.warn("kami-render host unavailable — run scripts/build.sh:", e); }
-
-    const pt = e => [e.clientX*devicePixelRatio, e.clientY*devicePixelRatio];
-    canvas.addEventListener("dblclick", e => fb.on_double_click(...pt(e)));
-    canvas.addEventListener("pointerdown", e => fb.on_pointer_down(...pt(e)));
-    canvas.addEventListener("pointermove", e => fb.on_pointer_move(...pt(e)));
-    addEventListener("pointerup", () => fb.on_pointer_up());
-    canvas.addEventListener("wheel", e => { e.preventDefault(); fb.on_wheel(...pt(e), e.deltaY); }, {passive:false});
-    // tool palette: data-tool buttons set the active tool (click canvas to place)
-    const tbtns = [...document.querySelectorAll("#toolbar button[data-tool]")];
-    tbtns.forEach(btn => btn.addEventListener("click", () => {
-      fb.set_tool(btn.dataset.tool);
-      tbtns.forEach(b => b.classList.toggle("active", b === btn));
-    }));
-  </script>
+  <p id="status">freeboard CLJC/render-IR authority lives under src/.</p>
 </body>
 </html>

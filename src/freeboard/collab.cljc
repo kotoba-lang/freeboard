@@ -3,8 +3,8 @@
    op carrying its actor + timestamp; the shared op log is **totally ordered** by
    [ts actor seq] and replayed from a base board, so any two clients that have
    seen the same set of ops converge to the same board (LWW on conflicts) —
-   independent of receive order. The op log is the thing synced over kotoba
-   (freeboard.kotoba push-ops!/pull-ops). See ADR-2606280200."
+   independent of receive order. The op log is the thing host adapters sync over
+   kotoba. See ADR-2606280200."
   (:require [freeboard.board :as b]))
 
 ;; ---- ops -------------------------------------------------------------------
