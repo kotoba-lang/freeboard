@@ -16,4 +16,7 @@ jobs:
       - uses: DeLaGuardo/setup-clojure@13.4
         with:
           cli: latest
+      - run: mkdir -p ../kami-engine && git clone --depth 1 https://github.com/kotoba-lang/kami-engine-sdk-clj.git ../kami-engine/kami-engine-sdk-clj
+      - run: git clone --depth 1 https://github.com/kotoba-lang/kasane.git ../kasane
+      - run: git clone --depth 1 https://github.com/kotoba-lang/canvaskit.git ../canvaskit
       - run: clojure -M:test
