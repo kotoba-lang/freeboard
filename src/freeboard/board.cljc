@@ -7,7 +7,8 @@
    Viewport math is delegated to kotoba-lang/canvaskit (UIScrollView semantics,
    ADR-2607071130); the board keeps its {:x :y :zoom} viewport shape."
   (:require [canvaskit.scroll-view :as cksv]
-            [canvaskit.viewport :as ckvp]))
+            [canvaskit.viewport :as ckvp]
+            [canvaskit.hit-test :as ckht]))
 
 ;; ---- document --------------------------------------------------------------
 (defn new-board
@@ -142,14 +143,13 @@
 (defn clear-selection [board] (assoc board :freeboard/selection #{}))
 (defn selected? [board id] (contains? (selection board) id))
 
-(defn- rects-overlap? [[ax ay aw ah] [bx by bw bh]]
-  (and (< ax (+ bx bw)) (< bx (+ ax aw)) (< ay (+ by bh)) (< by (+ ay ah))))
+(defn- item-frame [{:item/keys [x y w h]}] [x y w h])
 
 (defn select-in-rect
   "Rubber-band select: every item whose bbox overlaps the world rect [x y w h]."
-  [board [x y w h]]
+  [board rect]
   (select board (->> (:freeboard/items board)
-                     (filter #(rects-overlap? [x y w h] [(:item/x %) (:item/y %) (:item/w %) (:item/h %)]))
+                     (filter #(ckht/rect-intersects? rect (item-frame %)))
                      (map :item/id))))
 
 (defn move-selection [board dx dy]
@@ -184,16 +184,18 @@
         (delete-item gid))))
 
 ;; ---- hit testing -----------------------------------------------------------
-(defn- in-rect? [{:item/keys [x y w h]} [wx wy]]
-  (and (<= x wx (+ x w)) (<= y wy (+ y h))))
-
 (defn hit-test
-  "Topmost item (highest :item/z) whose world bbox contains world point, or nil."
+  "Topmost item (highest :item/z) whose world bbox contains world point, or nil.
+   Delegates to canvaskit.hit-test (:item/z -> :z-position); z ties resolve to
+   the later item (UIKit subviews order) — unreachable via add-item, whose :z
+   is unique."
   [board world-pt]
-  (->> (:freeboard/items board)
-       (filter #(in-rect? % world-pt))
-       (sort-by :item/z >)
-       first))
+  (:freeboard/item
+   (ckht/hit-test (map (fn [it] {:frame (item-frame it)
+                                 :z-position (:item/z it)
+                                 :freeboard/item it})
+                       (:freeboard/items board))
+                  world-pt)))
 
 (defn hit-test-screen [board screen-pt]
   (hit-test board (screen->world (:freeboard/viewport board) screen-pt)))
