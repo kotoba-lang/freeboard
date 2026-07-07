@@ -1,4 +1,6 @@
 {:paths ["src" "test" "resources"]
+ ;; board.cljc delegates viewport math to canvaskit (ADR-2607071130)
+ :deps {io.github.kotoba-lang/canvaskit {:local/root "../canvaskit"}}
  :tasks
  {build {:doc "Write the static CLJC/render-IR authority surface."
          :task (clojure.java.shell/sh "bash" "scripts/build.sh")}
