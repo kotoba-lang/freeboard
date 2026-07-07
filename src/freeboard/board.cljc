@@ -3,8 +3,11 @@
    the board document + viewport (pan/zoom) + item CRUD + world↔screen math +
    hit-testing. The brain is clj/cljc (this); rendering is kami-render (wgpu)
    via kami-engine-sdk-clj render-IR (see freeboard.render); persistence is
-   kotoba (content-addressed). See ADR-2606280200."
-  #?(:clj (:require [clojure.string :as str])))
+   kotoba (content-addressed). See ADR-2606280200.
+   Viewport math is delegated to kotoba-lang/canvaskit (UIScrollView semantics,
+   ADR-2607071130); the board keeps its {:x :y :zoom} viewport shape."
+  (:require [canvaskit.scroll-view :as cksv]
+            [canvaskit.viewport :as ckvp]))
 
 ;; ---- document --------------------------------------------------------------
 (defn new-board
@@ -20,28 +23,30 @@
 
 ;; ---- viewport / coordinate transforms -------------------------------------
 ;; screen = (world - pan) * zoom ;  world = pan + screen / zoom
-(defn world->screen [{:keys [x y zoom]} [wx wy]]
-  [(* (- wx x) zoom) (* (- wy y) zoom)])
+;; Implementation lives in canvaskit (view = content * zoom - offset, with
+;; offset = pan * zoom — the same formula); this ns keeps the {:x :y :zoom} shape.
+(def ^:private zoom-limits {:minimum-zoom-scale 0.05 :maximum-zoom-scale 64.0})
 
-(defn screen->world [{:keys [x y zoom]} [sx sy]]
-  [(+ x (/ sx zoom)) (+ y (/ sy zoom))])
+(defn- ->scroll-view [vp] (ckvp/from-viewport vp zoom-limits))
+
+(defn world->screen [vp world-pt]
+  (cksv/convert-point-to-view (->scroll-view vp) world-pt))
+
+(defn screen->world [vp screen-pt]
+  (cksv/convert-point-from-view (->scroll-view vp) screen-pt))
 
 (defn pan [board dx-screen dy-screen]
   ;; drag the canvas by a screen delta (world moves opposite / zoom-scaled)
-  (let [{:keys [zoom]} (:freeboard/viewport board)]
-    (-> board
-        (update-in [:freeboard/viewport :x] - (/ dx-screen zoom))
-        (update-in [:freeboard/viewport :y] - (/ dy-screen zoom)))))
+  (update board :freeboard/viewport
+          #(ckvp/to-viewport (cksv/scroll-by (->scroll-view %)
+                                             [(- dx-screen) (- dy-screen)]))))
 
 (defn zoom-at
   "Zoom to `new-zoom` (clamped) keeping the world point under screen point
    [sx sy] fixed."
-  [board new-zoom [sx sy]]
-  (let [vp   (:freeboard/viewport board)
-        z    (max 0.05 (min 64.0 new-zoom))
-        [wx wy] (screen->world vp [sx sy])]
-    (assoc board :freeboard/viewport
-           {:x (- wx (/ sx z)) :y (- wy (/ sy z)) :zoom z})))
+  [board new-zoom screen-pt]
+  (update board :freeboard/viewport
+          #(ckvp/to-viewport (cksv/zoom-to-point (->scroll-view %) new-zoom screen-pt))))
 
 ;; ---- items -----------------------------------------------------------------
 (defn gen-id []
