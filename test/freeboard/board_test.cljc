@@ -21,7 +21,12 @@
       (let [id (:item/id a)
             bd (b/bring-to-front bd id)]
         (is (> (:item/z (b/item-by-id bd id)) (:item/z (b/item-by-id bd (:item/id c)))))
-        (is (= 1 (count (:freeboard/items (b/delete-item bd id)))))))))
+        (is (= 1 (count (:freeboard/items (b/delete-item bd id)))))))
+    (testing "delete-item also drops the item from :freeboard/selection"
+      (let [id (:item/id a)
+            bd (-> bd (b/select [id]) (b/delete-item id))]
+        (is (= #{} (b/selection bd)))
+        (is (not (b/selected? bd id)))))))
 
 (deftest viewport-math
   (testing "world<->screen round trip + zoom"

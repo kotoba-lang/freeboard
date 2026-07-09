@@ -47,7 +47,11 @@
         (is (= (:item/id g) (:item/group (b/item-by-id bd "p"))))
         (let [bd (b/ungroup bd (:item/id g))]
           (is (nil? (b/item-by-id bd (:item/id g))))
-          (is (nil? (:item/group (b/item-by-id bd "p")))))))))
+          (is (nil? (:item/group (b/item-by-id bd "p")))))
+        (testing "ungroup a selected group also clears the group id from selection"
+          (let [bd (-> bd (b/select [(:item/id g)]) (b/ungroup (:item/id g)))]
+            (is (= #{} (b/selection bd)))
+            (is (not (b/selected? bd (:item/id g))))))))))
 
 (deftest ink
   (let [bd (-> (b/new-board) (b/add-ink [[10 10] [20 30] [40 15]] 3.0 "#222"))
