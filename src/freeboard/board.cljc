@@ -74,8 +74,14 @@
 
 (defn move-item  [board id dx dy] (update-item board id #(-> % (update :item/x + dx) (update :item/y + dy))))
 (defn resize-item [board id w h]  (update-item board id assoc :item/w (max 1.0 w) :item/h (max 1.0 h)))
-(defn delete-item [board id]
-  (update board :freeboard/items (fn [items] (vec (remove #(= id (:item/id %)) items)))))
+(defn delete-item
+  "Remove an item by id, also dropping it from :freeboard/selection so a
+   deleted item can't remain \"selected\" (ungroup relies on this too, since
+   it deletes the group item via this fn)."
+  [board id]
+  (-> board
+      (update :freeboard/items (fn [items] (vec (remove #(= id (:item/id %)) items))))
+      (update :freeboard/selection (fnil disj #{}) id)))
 
 (defn bring-to-front [board id]
   (let [z (:freeboard/next-z board)]
