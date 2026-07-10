@@ -8,9 +8,9 @@
 
  :deps {org.clojure/clojure       {:mvn/version "1.12.0"}
         ;; engine SDK: scene/ecs/render-IR contract for host adapters
-        ;; ADR-2607102200: always depend on standalone kami-engine-sdk-clj,
+        ;; ADR-2607102200: always depend on standalone kami-engine-sdk,
         ;; never the nested monorepo leftover under kami-engine/.
-        io.github.kotoba-lang/kami-engine-sdk-clj {:local/root "../kami-engine-sdk-clj"}
+        io.github.kotoba-lang/kami-engine-sdk {:local/root "../kami-engine-sdk"}
         ;; design-file importer (PSD/PDF/AI/PNG/SVG/Sketch/OOXML/…)
         io.github.kotoba-lang/kasane {:local/root "../kasane"}
         ;; viewport interaction math (UIScrollView semantics), ADR-2607071130
