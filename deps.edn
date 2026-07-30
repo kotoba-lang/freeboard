@@ -10,11 +10,14 @@
         ;; engine SDK: scene/ecs/render-IR contract for host adapters
         ;; ADR-2607102200: always depend on standalone kami-engine-sdk,
         ;; never the nested monorepo leftover under kami-engine/.
-        io.github.kotoba-lang/kami-engine-sdk {:local/root "../kami-engine-sdk"}
+        io.github.kotoba-lang/kami-engine-sdk {:git/url "https://github.com/kotoba-lang/kami-engine-sdk.git"
+                                     :git/sha "03255f3dec8611a060edce79b321872c7945a68a"}
         ;; design-file importer (PSD/PDF/AI/PNG/SVG/Sketch/OOXML/…)
-        io.github.kotoba-lang/kasane {:local/root "../kasane"}
+        io.github.kotoba-lang/kasane {:git/url "https://github.com/kotoba-lang/kasane.git"
+                                     :git/sha "dca6277cbd2b1781d7e07287a6e003b1f8254a84"}
         ;; viewport interaction math (UIScrollView semantics), ADR-2607071130
-        io.github.kotoba-lang/canvaskit {:local/root "../canvaskit"}}
+        io.github.kotoba-lang/canvaskit {:git/url "https://github.com/kotoba-lang/canvaskit.git"
+                                     :git/sha "455f16db6016293452cee0de451d87ef62638dce"}}
 
  :aliases
  {:malli  {:extra-deps {metosin/malli {:mvn/version "0.16.4"}}}      ; freeboard.schema (validation)
