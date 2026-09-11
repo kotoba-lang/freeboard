@@ -34,20 +34,20 @@ SSoT: `90-docs/adr/2606280200-freeboard-infinite-canvas.md`（superproject 側�
 ## テスト / ビルド
 
 ```bash
-clojure -M:test                            # JVM — 19 tests / 102 assertions（2026-08-13 実測）
-nbb scripts/run-task.cljk build            # 静的 CLJC/render-IR authority surface を書き出す
+kbb -M:test                            # JVM — 19 tests / 102 assertions（2026-08-13 実測）
+kbb --backend sci scripts/run-task.cljk build            # 静的 CLJC/render-IR authority surface を書き出す
 ```
 
-`bb test` は **利用できない**。babashka は ADR-2607173000 で本 workspace の
+`kbb -M:test` は **利用できない**。babashka は ADR-2607173000 で本 workspace の
 script host から退役し、Wave-3 変換は `scripts/tasks.edn` を空にしたまま
 `bb.edn` を消したので、2026-07-17 以降どこからも起動できない
 （ADR-2608131600）。復元した babashka 側の本体は `scripts/tasks-complex.edn`
-にある。同じ検証は上の `clojure -M:test` が行う。`serve` も同じ理由で
+にある。同じ検証は上の `kbb -M:test` が行う。`serve` も同じ理由で
 利用できない —— `(shell {:dir "public"} …)` の cwd を `run-task.cljs` が
 表現できないため、port が要る。
 
 ## 状態（正直に）
 
-- **モデル/インポート/render-IR 生成は実装・検証済み**（当時 bb で 5 tests / 24 assertions green。現在は `clojure -M:test` が全体で 19 tests / 102 assertions green、2026-08-13 実測）。
+- **モデル/インポート/render-IR 生成は実装・検証済み**（当時 bb で 5 tests / 24 assertions green。現在は `kbb -M:test` が全体で 19 tests / 102 assertions green、2026-08-13 実測）。
 - **ブラウザ描画/永続 client**は host repo 側で束ねる。ここでは board model / import / render-IR を authority とする。
 - **永続/共同編集**（kotoba QuadStore + CACAO）は設計済み・未配線（ADR 参照）。
