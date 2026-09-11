@@ -35,7 +35,7 @@ SSoT: `90-docs/adr/2606280200-freeboard-infinite-canvas.md`（superproject 側�
 
 ```bash
 clojure -M:test                            # JVM — 19 tests / 102 assertions（2026-08-13 実測）
-nbb scripts/run-task.cljs build            # 静的 CLJC/render-IR authority surface を書き出す
+nbb scripts/run-task.cljk build            # 静的 CLJC/render-IR authority surface を書き出す
 ```
 
 `bb test` は **利用できない**。babashka は ADR-2607173000 で本 workspace の
