@@ -1,5 +1,5 @@
 (ns freeboard.board-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [freeboard.board :as b]
             [freeboard.import :as imp]
             [freeboard.render :as r]))
