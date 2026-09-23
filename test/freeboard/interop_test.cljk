@@ -1,6 +1,6 @@
 (ns freeboard.interop-test
   "Unification with kami's canonical EDN: render-IR (ADR-0044) + Genko doc envelope."
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [kotoba.test :refer [deftest is testing]]
             [freeboard.board :as b]
             [freeboard.render-ir :as rir]
             [freeboard.doc :as doc]))
