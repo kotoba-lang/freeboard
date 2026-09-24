@@ -51,8 +51,7 @@
 
 ;; ---- items -----------------------------------------------------------------
 (defn gen-id []
-  #?(:clj (str (java.util.UUID/randomUUID))
-     :cljs (str (random-uuid))))
+  (str (random-uuid)))
 
 (defn add-item
   "Add an item map (kind + geometry) to the board, assigning id + z if absent."
